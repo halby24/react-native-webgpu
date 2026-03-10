@@ -19,7 +19,8 @@ std::shared_ptr<rnwgpu::RNWebGPUManager> manager;
 
 extern "C" JNIEXPORT void JNICALL Java_com_webgpu_WebGPUModule_initializeNative(
     JNIEnv *env, jobject /* this */, jlong jsRuntime,
-    jobject jsCallInvokerHolder, jobject blobModule) {
+    jobject jsCallInvokerHolder, jobject blobModule,
+    jobjectArray enableToggles, jobjectArray disableToggles) {
   auto runtime = reinterpret_cast<facebook::jsi::Runtime *>(jsRuntime);
   jobject globalBlobModule = env->NewGlobalRef(blobModule);
   auto jsCallInvoker{
@@ -29,8 +30,48 @@ extern "C" JNIEXPORT void JNICALL Java_com_webgpu_WebGPUModule_initializeNative(
           ->getCallInvoker()};
   auto platformContext =
       std::make_shared<rnwgpu::AndroidPlatformContext>(globalBlobModule);
-  manager = std::make_shared<rnwgpu::RNWebGPUManager>(runtime, jsCallInvoker,
-                                                      platformContext);
+
+  // Convert Java string arrays to std::vector<std::string>
+  std::vector<std::string> enableVec;
+  std::vector<std::string> disableVec;
+  if (enableToggles != nullptr) {
+    jsize len = env->GetArrayLength(enableToggles);
+    for (jsize i = 0; i < len; i++) {
+      auto jstr = (jstring)env->GetObjectArrayElement(enableToggles, i);
+      if (jstr == nullptr) {
+        continue;
+      }
+      const char *cstr = env->GetStringUTFChars(jstr, nullptr);
+      if (cstr == nullptr) {
+        env->DeleteLocalRef(jstr);
+        continue;
+      }
+      enableVec.emplace_back(cstr);
+      env->ReleaseStringUTFChars(jstr, cstr);
+      env->DeleteLocalRef(jstr);
+    }
+  }
+  if (disableToggles != nullptr) {
+    jsize len = env->GetArrayLength(disableToggles);
+    for (jsize i = 0; i < len; i++) {
+      auto jstr = (jstring)env->GetObjectArrayElement(disableToggles, i);
+      if (jstr == nullptr) {
+        continue;
+      }
+      const char *cstr = env->GetStringUTFChars(jstr, nullptr);
+      if (cstr == nullptr) {
+        env->DeleteLocalRef(jstr);
+        continue;
+      }
+      disableVec.emplace_back(cstr);
+      env->ReleaseStringUTFChars(jstr, cstr);
+      env->DeleteLocalRef(jstr);
+    }
+  }
+
+  manager = std::make_shared<rnwgpu::RNWebGPUManager>(
+      runtime, jsCallInvoker, platformContext,
+      std::move(enableVec), std::move(disableVec));
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_webgpu_WebGPUView_onSurfaceChanged(

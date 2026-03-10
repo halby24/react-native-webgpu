@@ -93,6 +93,7 @@ async::AsyncTaskHandle GPUAdapter::requestDevice(
        creationRuntime](const async::AsyncTaskHandle::ResolveFunction &resolve,
                         const async::AsyncTaskHandle::RejectFunction &reject) {
         (void)descriptor;
+
         _instance.RequestDevice(
             &aDescriptor, wgpu::CallbackMode::AllowProcessEvents,
             [asyncRunner = _async, resolve, reject, label, creationRuntime,
@@ -131,6 +132,8 @@ async::AsyncTaskHandle GPUAdapter::requestDevice(
                   break;
                 case wgpu::LoggingType::Verbose:
                   logLevel = "Verbose";
+                  Logger::logToConsole("%s: %.*s", logLevel,
+                                       static_cast<int>(msg.length), msg.data);
                   break;
                 case wgpu::LoggingType::Info:
                   logLevel = "Info";

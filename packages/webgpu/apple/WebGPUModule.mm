@@ -20,6 +20,30 @@ namespace react = facebook::react;
 - (void *)runtime;
 @end
 
+static std::vector<std::string> ReadToggleArray(NSDictionary *infoDictionary,
+                                                NSString *key) {
+  std::vector<std::string> toggles;
+  id value = infoDictionary[key];
+  if (![value isKindOfClass:[NSArray class]]) {
+    return toggles;
+  }
+
+  for (id item in (NSArray *)value) {
+    if (![item isKindOfClass:[NSString class]]) {
+      continue;
+    }
+    NSString *toggle = [(NSString *)item
+        stringByTrimmingCharactersInSet:
+            [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (toggle.length == 0) {
+      continue;
+    }
+    toggles.push_back(toggle.UTF8String);
+  }
+
+  return toggles;
+}
+
 @implementation WebGPUModule
 
 RCT_EXPORT_MODULE(WebGPUModule)
@@ -72,10 +96,17 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
     return [NSNumber numberWithBool:NO];
   }
 
+  NSDictionary *infoDictionary = NSBundle.mainBundle.infoDictionary ?: @{};
+  auto enableToggles =
+      ReadToggleArray(infoDictionary, @"RNWebGPUEnableToggles");
+  auto disableToggles =
+      ReadToggleArray(infoDictionary, @"RNWebGPUDisableToggles");
+
   std::shared_ptr<rnwgpu::PlatformContext> platformContext =
       std::make_shared<rnwgpu::ApplePlatformContext>();
-  webgpuManager = std::make_shared<rnwgpu::RNWebGPUManager>(runtime, jsInvoker,
-                                                            platformContext);
+  webgpuManager = std::make_shared<rnwgpu::RNWebGPUManager>(
+      runtime, jsInvoker, platformContext,
+      std::move(enableToggles), std::move(disableToggles));
   return @true;
 }
 
